@@ -49,6 +49,7 @@ public class BirdHitDetector : MonoBehaviour
 
             angerMeter?.OnPunch();
             controller?.SetState(BirdState.Ragdoll, impactForce);
+            hitSounds.PlayPunchAudio();
         }
         else
         {

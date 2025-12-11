@@ -7,41 +7,51 @@ public class HitSounds : MonoBehaviour
 {
 
 
-    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioSource audioSourceBird;
+    [SerializeField] private AudioSource audioSourcePlayer;
     [SerializeField] private AudioClip clipHappy;
     [SerializeField] private AudioClip clipAngry;
     [SerializeField] private AudioClip clipAngrier;
     [SerializeField] private AudioClip clipAngriest;
+    [SerializeField] private AudioClip clipPunch;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
 
     void Awake()
     {
-        audioSource = GetComponent<AudioSource>();
+        audioSourceBird = GetComponent<AudioSource>();
 
     }
     public void PlayHitAudio(float happyLevel)
     {
-        if (audioSource.isPlaying)
+        if (audioSourceBird.isPlaying)
             return;
 
         switch (happyLevel)
         {
             case float n when n == 0f:
-                audioSource.clip = clipAngriest;
+                audioSourceBird.clip = clipAngriest;
                 break;
             case float n when n < 40f:
-                audioSource.clip = clipAngrier;
+                audioSourceBird.clip = clipAngrier;
                 break;
             case float n when n < 60f:
-                audioSource.clip = clipAngry;
+                audioSourceBird.clip = clipAngry;
                 break;
             case float n when n >= 60f:
-                audioSource.clip = clipHappy;
+                audioSourceBird.clip = clipHappy;
                 break;
         }
 
-        audioSource.Play();
+        audioSourceBird.Play();
+    }
+
+    public void PlayPunchAudio()
+    {
+        if (audioSourcePlayer.isPlaying)
+            return;
+        audioSourcePlayer.clip = clipPunch;
+        audioSourcePlayer.Play();
     }
 
 }

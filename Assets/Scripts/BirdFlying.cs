@@ -1,127 +1,102 @@
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 
 public class BirdFlying : MonoBehaviour
 {
-    [Header("Settings")]
-    [SerializeField] private float _flightSpeed = 5f;
-    [SerializeField] private float _rotationSpeed = 10f;
-    [Tooltip("How high the bird arcs between points")]
-    [SerializeField] private float _arcHeight = 2.0f;
+    [Header("Flight Settings")]
+    public float flightSpeed = 5f;
+    public float rotationSpeed = 8f;
+
+    [Header("Bezier Arc Settings")]
+    [Tooltip("How high the arc goes based on waypoint distance.")]
+    public float arcHeightFactor = 0.25f;
+
+    [Tooltip("Random variance only applied to vertical arc.")]
+    public float arcRandomness = 0.5f;
 
     [Header("Perch Settings")]
-    [Tooltip("Transform on the Left Controller where the bird should land")]
     public Transform playerPerchTarget;
-    [Tooltip("How far ahead to place the control point based on current direction")]
-    [SerializeField] private float _perchTransitionDistance = 2f;
-    [Tooltip("Duration of the landing animation in seconds")]
-    [SerializeField] private float _landingDuration = 0.5f;
-    [Tooltip("Distance at which the bird starts slowing down")]
-    [SerializeField] private float _slowdownDistance = 2f;
-    [Tooltip("Minimum speed multiplier when approaching (0.1 = 10% of normal speed)")]
-    [SerializeField] private float _minSpeedMultiplier = 0.3f;
-    [Tooltip("How quickly the bird adjusts to moving perch target")]
-    [SerializeField] private float _perchTrackingSpeed = 2f;
-
-    private List<Transform> friendlyWaypoints;
-    private List<Transform> neutralWaypoints;
-    private List<Transform> angryWaypoints;
-    private Vector3 _p0, _p1, _p2;
-    private float _t; //time from 0 to 1
-    private bool _isPerching = false;
-    private bool _isLanding = false;
-    private Transform _lastWaypoint;
-
-    // Store current tangent for smooth transitions
-    private Vector3 _currentTangent;
-
-    // Landing animation variables
-    private float _landingTimer = 0f;
-    private Vector3 _landingStartPos;
-    private Quaternion _landingStartRot;
+    public float landingDuration = 0.5f;
+    public float slowdownDistance = 2f;
+    public float minSpeedMultiplier = 0.3f;
+    public float perchTrackingSpeed = 3f;
 
     public System.Action OnArrivedAtPerch;
-    BirdAngerMeter angerMeter;
+    private BirdAngerMeter angerMeter;
 
-    private void Awake()
+    private bool _isPerching = false;
+    private bool _isLanding = false;
+
+    private Vector3 p0, p1, p2, p3;
+    private float t = 0f;
+
+    private Vector3 exitVelocity;
+
+    private float landingTimer = 0f;
+    private Vector3 landingStartPos;
+    private Quaternion landingStartRot;
+
+    private List<Transform> friendlyWaypoints = new List<Transform>();
+    private List<Transform> neutralWaypoints = new List<Transform>();
+    private List<Transform> angryWaypoints = new List<Transform>();
+    private Transform lastWaypoint;
+
+    void Awake()
     {
+        BuildWaypointList();
+        HideWaypointMeshes();
         angerMeter = GetComponentInChildren<BirdAngerMeter>();
-
-        // Find all objects tagged "Waypoint"
-        GameObject[] objs = GameObject.FindGameObjectsWithTag("FriendlyWaypoint");
-        friendlyWaypoints = new List<Transform>();
-        foreach (var o in objs) friendlyWaypoints.Add(o.transform);
-        objs = null;
-
-        // Find all objects tagged "Waypoint"
-        objs = GameObject.FindGameObjectsWithTag("NeutralWaypoint");
-        neutralWaypoints = new List<Transform>();
-        foreach (var o in objs) neutralWaypoints.Add(o.transform);
-        objs = null;
-
-        // Find all objects tagged "Waypoint"
-        objs = GameObject.FindGameObjectsWithTag("AngryWaypoint");
-        angryWaypoints = new List<Transform>();
-        foreach (var o in objs) angryWaypoints.Add(o.transform);
-        objs = null;
-
-        //hide all waypoints
-        SetWaypointVisibility();
-
     }
 
-    private void OnEnable()
+    void OnEnable()
     {
         _isPerching = false;
         _isLanding = false;
+        exitVelocity = transform.forward * flightSpeed;
+
         PickNewPath();
     }
 
     void Update()
     {
-        // Handle landing animation separately
         if (_isLanding)
         {
             UpdateLandingAnimation();
             return;
         }
 
-        // 1. Increment 't' based on speed and distance
-        float distance = Vector3.Distance(_p0, _p2);
-        if (distance <= 0.1f) distance = 0.1f;
+        // Track perch target if moving
+        if (_isPerching && playerPerchTarget != null)
+        {
+            p3 = Vector3.Lerp(p3, playerPerchTarget.position, perchTrackingSpeed * Time.deltaTime);
+        }
 
-        // Apply slowdown when approaching the perch
+        // Recalculate path length AFTER perch tracking
+        float pathLength = EstimateBezierLength(p0, p1, p2, p3);
+
         float speedMultiplier = 1f;
         if (_isPerching)
         {
-            float distanceToTarget = Vector3.Distance(transform.position, playerPerchTarget.position);
-            if (distanceToTarget < _slowdownDistance)
+            float dist = Vector3.Distance(transform.position, playerPerchTarget.position);
+            if (dist < slowdownDistance)
             {
-                // Smoothly interpolate speed from normal to minimum as we get closer
-                float slowdownFactor = distanceToTarget / _slowdownDistance;
-                speedMultiplier = Mathf.Lerp(_minSpeedMultiplier, 1f, slowdownFactor);
+                float s = dist / slowdownDistance;
+                speedMultiplier = Mathf.Lerp(minSpeedMultiplier, 1f, s);
             }
         }
 
-        _t += (Time.deltaTime * _flightSpeed * speedMultiplier) / distance;
+        t += (Time.deltaTime * flightSpeed * speedMultiplier) / pathLength;
 
-        // 2. Smoothly adjust target if perching (for moving hands)
-        if (_isPerching && playerPerchTarget != null)
+        // Reached end of curve
+        if (t >= 1f)
         {
-            // Smoothly update the target position instead of snapping
-            _p2 = Vector3.Lerp(_p2, playerPerchTarget.position, _perchTrackingSpeed * Time.deltaTime);
-        }
+            t = 1f;
 
-        // 3. Check for arrival
-        if (_t >= 1.0f)
-        {
-            _t = 1.0f;
+            exitVelocity = CalculateBezierTangent(p0, p1, p2, p3, 1f).normalized * flightSpeed;
 
             if (_isPerching)
             {
-                // Start landing animation
-                StartLandingAnimation();
+                StartLanding();
                 return;
             }
             else
@@ -130,61 +105,38 @@ public class BirdFlying : MonoBehaviour
             }
         }
 
-        // 4. Calculate Bezier Position
-        Vector3 newPos = CalculateQuadraticBezier(_p0, _p1, _p2, _t);
+        // Move along curve
+        Vector3 pos = CalculateBezier(p0, p1, p2, p3, t);
+        Vector3 tangent = CalculateBezierTangent(p0, p1, p2, p3, t);
 
-        // 5. Calculate current tangent (for smooth transitions)
-        _currentTangent = CalculateBezierTangent(_p0, _p1, _p2, _t);
+        transform.position = pos;
 
-        // 6. Update Rotation to look forward along the curve
-        if (_currentTangent != Vector3.zero)
+        if (tangent != Vector3.zero)
         {
-            Quaternion targetRot = Quaternion.LookRotation(_currentTangent);
-
-            // If perching, rotate instantly toward perch target
-            if (_isPerching && playerPerchTarget != null)
-            {
-                Vector3 directionToPerch = (playerPerchTarget.position - transform.position).normalized;
-                if (directionToPerch != Vector3.zero)
-                {
-                    transform.rotation = Quaternion.LookRotation(directionToPerch);
-                }
-            }
-            else
-            {
-                // Normal smooth rotation for waypoint flying
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, _rotationSpeed * Time.deltaTime);
-            }
+            Quaternion targetRot = Quaternion.LookRotation(tangent, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
         }
-
-        // 7. Apply Position
-        transform.position = newPos;
     }
 
-    private void StartLandingAnimation()
+    void StartLanding()
     {
         _isLanding = true;
-        _landingTimer = 0f;
-        _landingStartPos = transform.position;
-        _landingStartRot = transform.rotation;
+        landingTimer = 0f;
+        landingStartPos = transform.position;
+        landingStartRot = transform.rotation;
     }
 
-    private void UpdateLandingAnimation()
+    void UpdateLandingAnimation()
     {
-        _landingTimer += Time.deltaTime;
-        float normalizedTime = Mathf.Clamp01(_landingTimer / _landingDuration);
+        landingTimer += Time.deltaTime;
+        float tNorm = Mathf.Clamp01(landingTimer / landingDuration);
 
-        // Use ease-out curve for smooth deceleration
-        float easedTime = 1f - Mathf.Pow(1f - normalizedTime, 3f);
+        float ease = 1f - Mathf.Pow(1f - tNorm, 3f);
 
-        // Smoothly move to perch position
-        transform.position = Vector3.Lerp(_landingStartPos, playerPerchTarget.position, easedTime);
+        transform.position = Vector3.Lerp(landingStartPos, playerPerchTarget.position, ease);
+        transform.rotation = Quaternion.Slerp(landingStartRot, playerPerchTarget.rotation, ease);
 
-        // Smoothly rotate to match perch rotation
-        transform.rotation = Quaternion.Slerp(_landingStartRot, playerPerchTarget.rotation, easedTime);
-
-        // Check if landing animation is complete
-        if (normalizedTime >= 1f)
+        if (tNorm >= 1f)
         {
             _isLanding = false;
             OnArrivedAtPerch?.Invoke();
@@ -198,124 +150,125 @@ public class BirdFlying : MonoBehaviour
 
         _isPerching = true;
 
-        // Setup path to Hand
-        _p0 = transform.position;
-        _p2 = playerPerchTarget.position;
+        p0 = transform.position;
+        p3 = playerPerchTarget.position;
 
-        // This makes the bird continue in its current direction before curving toward the perch
-        Vector3 currentDirection = _currentTangent.normalized;
+        Vector3 dir = (p3 - p0).normalized;
+        float dist = Vector3.Distance(p0, p3);
+        Vector3 exitDir = exitVelocity.normalized;
 
-        // If we don't have a valid tangent yet, use forward
-        if (currentDirection == Vector3.zero)
-        {
-            currentDirection = transform.forward;
-        }
+        p1 = p0 + exitDir * Mathf.Min(dist * 0.33f, 6f);
+        p2 = p3 - dir * Mathf.Min(dist * 0.33f, 6f);
 
-        // Place control point ahead of bird in its current direction then blend it
-        Vector3 directionBasedPoint = _p0 + currentDirection * _perchTransitionDistance;
+        // Vertical arc only
+        float arc = dist * arcHeightFactor + Random.Range(-arcRandomness, arcRandomness);
+        p1 += Vector3.up * arc;
+        p2 += Vector3.up * arc * 0.5f;
 
-        // Blend between direction-based point and a point between start/end
-        Vector3 midPoint = (_p0 + _p2) / 2f + Vector3.up * _arcHeight;
-
-        // Weight more toward current direction
-        _p1 = Vector3.Lerp(midPoint, directionBasedPoint, 0.6f);
-
-        _t = 0f; // Reset path progress
-        _lastWaypoint = null; //clear last waypoint
+        t = 0f;
+        lastWaypoint = null;
     }
 
     private void PickNewPath()
     {
-        List<Transform> _allWaypoints;
+        List<Transform> currentWaypoints;
         float happyLevel = angerMeter.GetHappyLevel();
 
         // Choose waypoint list based on anger level
         if (happyLevel > 60f)
         {
-            _allWaypoints = friendlyWaypoints;
+            currentWaypoints = friendlyWaypoints;
         }
         else if (happyLevel < 40f)
         {
-            _allWaypoints = angryWaypoints;
+            currentWaypoints = angryWaypoints;
         }
         else
         {
-            _allWaypoints = neutralWaypoints;
+            currentWaypoints = neutralWaypoints;
         }
 
-        if (_allWaypoints.Count == 0) return;
+        if (currentWaypoints.Count == 0) return;
 
-        //current pos
-        _p0 = transform.position;
-
-        //new target
-        Transform targetWp;
-
-        if (_allWaypoints.Count > 1)
+        Transform target;
+        do
         {
-            do
-            {
-                targetWp = _allWaypoints[Random.Range(0, _allWaypoints.Count)];
-            }
-            while (targetWp == _lastWaypoint);
+            target = currentWaypoints[Random.Range(0, currentWaypoints.Count)];
         }
-        else
-        {
-            targetWp = _allWaypoints[0];
-        }
+        while (target == lastWaypoint && currentWaypoints.Count > 1);
 
-        _lastWaypoint = targetWp;
-        _p2 = targetWp.position;
+        lastWaypoint = target;
 
-        // For regular waypoint transitions, also use current tangent for smoothness
-        Vector3 currentDirection = _currentTangent.normalized;
-        if (currentDirection == Vector3.zero)
-        {
-            currentDirection = transform.forward;
-        }
+        p0 = transform.position;
+        p3 = target.position;
 
-        Vector3 mathematicalCenter = (_p0 + _p2) / 2;
-        Vector3 baseArc = mathematicalCenter + (Vector3.up * _arcHeight);
+        float dist = Vector3.Distance(p0, p3);
+        Vector3 dir = (p3 - p0).normalized;
+        Vector3 exitDir = exitVelocity.normalized;
 
-        // Blend current direction with random variation
-        Vector3 directionInfluence = _p0 + currentDirection * 2f;
-        _p1 = Vector3.Lerp(baseArc + (Random.insideUnitSphere * 5f), directionInfluence, 0.3f);
+        p1 = p0 + exitDir * Mathf.Min(dist * 0.33f, 6f);
+        p2 = p3 - dir * Mathf.Min(dist * 0.33f, 6f);
 
-        _t = 0f;
+        float arc = dist * arcHeightFactor + Random.Range(-arcRandomness, arcRandomness);
+        p1 += Vector3.up * arc;
+        p2 += Vector3.up * arc * 0.5f;
+
+        t = 0f;
     }
 
-    // Formula: (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-    private Vector3 CalculateQuadraticBezier(Vector3 p0, Vector3 p1, Vector3 p2, float t)
+    Vector3 CalculateBezier(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float t)
     {
         float u = 1 - t;
-        float tt = t * t;
-        float uu = u * u;
-
-        Vector3 p = (uu * p0) + (2 * u * t * p1) + (tt * p2);
-        return p;
+        return
+            u * u * u * a +
+            3f * u * u * t * b +
+            3f * u * t * t * c +
+            t * t * t * d;
     }
 
-    // Calculates the direction the bird is facing at point 't'
-    private Vector3 CalculateBezierTangent(Vector3 p0, Vector3 p1, Vector3 p2, float t)
+    Vector3 CalculateBezierTangent(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float t)
     {
         float u = 1 - t;
-        return 2 * u * (p1 - p0) + 2 * t * (p2 - p1);
+        return
+            3f * u * u * (b - a) +
+            6f * u * t * (c - b) +
+            3f * t * t * (d - c);
     }
 
-    private void SetWaypointVisibility()
+    float EstimateBezierLength(Vector3 a, Vector3 b, Vector3 c, Vector3 d, int segments = 20)
     {
-        // Hide all waypoints 
+        float len = 0f;
+        Vector3 prev = a;
+        for (int i = 1; i <= segments; i++)
+        {
+            float t = i / (float)segments;
+            Vector3 p = CalculateBezier(a, b, c, d, t);
+            len += Vector3.Distance(prev, p);
+            prev = p;
+        }
+        return len;
+    }
+
+    void BuildWaypointList()
+    {
+        AddWaypoints("FriendlyWaypoint", friendlyWaypoints);
+        AddWaypoints("NeutralWaypoint", neutralWaypoints);
+        AddWaypoints("AngryWaypoint", angryWaypoints);
+    }
+
+    void AddWaypoints(string tag, List<Transform> temp)
+    {
+        foreach (var obj in GameObject.FindGameObjectsWithTag(tag))
+            temp.Add(obj.transform);
+    }
+
+    void HideWaypointMeshes()
+    {
         foreach (var t in friendlyWaypoints)
-            if (t.TryGetComponent<Renderer>(out var r1)) r1.enabled = false;
-
+            if (t.TryGetComponent(out Renderer r)) r.enabled = false;
         foreach (var t in neutralWaypoints)
-            if (t.TryGetComponent<Renderer>(out var r2)) r2.enabled = false;
-
+            if (t.TryGetComponent(out Renderer r)) r.enabled = false;
         foreach (var t in angryWaypoints)
-            if (t.TryGetComponent<Renderer>(out var r3)) r3.enabled = false;
-
-        //foreach (var t in showList)
-        //    if (t.TryGetComponent<Renderer>(out var r4)) r4.enabled = true;
+            if (t.TryGetComponent(out Renderer r)) r.enabled = false;
     }
-
 }
