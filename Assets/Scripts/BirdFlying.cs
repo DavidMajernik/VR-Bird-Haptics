@@ -15,15 +15,27 @@ public class BirdFlying : MonoBehaviour
     public Transform playerPerchTarget;
     [Tooltip("How far ahead to place the control point based on current direction")]
     [SerializeField] private float _perchTransitionDistance = 3f;
+    [Tooltip("Duration of the landing animation in seconds")]
+    [SerializeField] private float _landingDuration = 1f;
+    [Tooltip("Distance at which the bird starts slowing down")]
+    [SerializeField] private float _slowdownDistance = 3f;
+    [Tooltip("Minimum speed multiplier when approaching (0.1 = 10% of normal speed)")]
+    [SerializeField] private float _minSpeedMultiplier = 0.2f;
 
     private List<Transform> _allWaypoints;
     private Vector3 _p0, _p1, _p2;
     private float _t; //time from 0 to 1
     private bool _isPerching = false;
+    private bool _isLanding = false;
     private Transform _lastWaypoint;
 
     // Store current tangent for smooth transitions
     private Vector3 _currentTangent;
+
+    // Landing animation variables
+    private float _landingTimer = 0f;
+    private Vector3 _landingStartPos;
+    private Quaternion _landingStartRot;
 
     public System.Action OnArrivedAtPerch;
 
@@ -40,16 +52,37 @@ public class BirdFlying : MonoBehaviour
     private void OnEnable()
     {
         _isPerching = false;
+        _isLanding = false;
         PickNewPath();
     }
 
     void Update()
     {
+        // Handle landing animation separately
+        if (_isLanding)
+        {
+            UpdateLandingAnimation();
+            return;
+        }
+
         // 1. Increment 't' based on speed and distance
         float distance = Vector3.Distance(_p0, _p2);
         if (distance <= 0.1f) distance = 0.1f;
 
-        _t += (Time.deltaTime * _flightSpeed) / distance;
+        // Apply slowdown when approaching the perch
+        float speedMultiplier = 1f;
+        if (_isPerching)
+        {
+            float distanceToTarget = Vector3.Distance(transform.position, playerPerchTarget.position);
+            if (distanceToTarget < _slowdownDistance)
+            {
+                // Smoothly interpolate speed from normal to minimum as we get closer
+                float slowdownFactor = distanceToTarget / _slowdownDistance;
+                speedMultiplier = Mathf.Lerp(_minSpeedMultiplier, 1f, slowdownFactor);
+            }
+        }
+
+        _t += (Time.deltaTime * _flightSpeed * speedMultiplier) / distance;
 
         // 2. Check for arrival
         if (_t >= 1.0f)
@@ -58,9 +91,8 @@ public class BirdFlying : MonoBehaviour
 
             if (_isPerching)
             {
-                // We have arrived at the hand!
-                OnArrivedAtPerch?.Invoke();
-                enabled = false;
+                // Start landing animation
+                StartLandingAnimation();
                 return;
             }
             else
@@ -84,6 +116,37 @@ public class BirdFlying : MonoBehaviour
 
         // 6. Apply Position
         transform.position = newPos;
+    }
+
+    private void StartLandingAnimation()
+    {
+        _isLanding = true;
+        _landingTimer = 0f;
+        _landingStartPos = transform.position;
+        _landingStartRot = transform.rotation;
+    }
+
+    private void UpdateLandingAnimation()
+    {
+        _landingTimer += Time.deltaTime;
+        float normalizedTime = Mathf.Clamp01(_landingTimer / _landingDuration);
+
+        // Use ease-out curve for smooth deceleration
+        float easedTime = 1f - Mathf.Pow(1f - normalizedTime, 3f);
+
+        // Smoothly move to perch position
+        transform.position = Vector3.Lerp(_landingStartPos, playerPerchTarget.position, easedTime);
+
+        // Smoothly rotate to match perch rotation
+        transform.rotation = Quaternion.Slerp(_landingStartRot, playerPerchTarget.rotation, easedTime);
+
+        // Check if landing animation is complete
+        if (normalizedTime >= 1f)
+        {
+            _isLanding = false;
+            OnArrivedAtPerch?.Invoke();
+            enabled = false;
+        }
     }
 
     public void FlyToPerch()
