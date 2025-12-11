@@ -73,4 +73,9 @@ public class BirdAngerMeter : MonoBehaviour
     {
         currentHappyLevel = 100f;
     }
+
+    public float GetHappyLevel()
+    {
+        return currentHappyLevel;
+    }
 }

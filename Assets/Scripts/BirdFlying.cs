@@ -24,7 +24,9 @@ public class BirdFlying : MonoBehaviour
     [Tooltip("How quickly the bird adjusts to moving perch target")]
     [SerializeField] private float _perchTrackingSpeed = 2f;
 
-    private List<Transform> _allWaypoints;
+    private List<Transform> friendlyWaypoints;
+    private List<Transform> neutralWaypoints;
+    private List<Transform> angryWaypoints;
     private Vector3 _p0, _p1, _p2;
     private float _t; //time from 0 to 1
     private bool _isPerching = false;
@@ -40,15 +42,33 @@ public class BirdFlying : MonoBehaviour
     private Quaternion _landingStartRot;
 
     public System.Action OnArrivedAtPerch;
+    BirdAngerMeter angerMeter;
 
     private void Awake()
     {
-        // Find all objects tagged "Waypoint"
-        GameObject[] objs = GameObject.FindGameObjectsWithTag("Waypoint");
-        _allWaypoints = new List<Transform>();
-        foreach (var o in objs) _allWaypoints.Add(o.transform);
+        angerMeter = GetComponentInChildren<BirdAngerMeter>();
 
-        if (_allWaypoints.Count == 0) Debug.LogWarning("No objects with tag 'Waypoint' found!");
+        // Find all objects tagged "Waypoint"
+        GameObject[] objs = GameObject.FindGameObjectsWithTag("FriendlyWaypoint");
+        friendlyWaypoints = new List<Transform>();
+        foreach (var o in objs) friendlyWaypoints.Add(o.transform);
+        objs = null;
+
+        // Find all objects tagged "Waypoint"
+        objs = GameObject.FindGameObjectsWithTag("NeutralWaypoint");
+        neutralWaypoints = new List<Transform>();
+        foreach (var o in objs) neutralWaypoints.Add(o.transform);
+        objs = null;
+
+        // Find all objects tagged "Waypoint"
+        objs = GameObject.FindGameObjectsWithTag("AngryWaypoint");
+        angryWaypoints = new List<Transform>();
+        foreach (var o in objs) angryWaypoints.Add(o.transform);
+        objs = null;
+
+        //hide all waypoints
+        SetWaypointVisibility();
+
     }
 
     private void OnEnable()
@@ -206,6 +226,23 @@ public class BirdFlying : MonoBehaviour
 
     private void PickNewPath()
     {
+        List<Transform> _allWaypoints;
+        float happyLevel = angerMeter.GetHappyLevel();
+
+        // Choose waypoint list based on anger level
+        if (happyLevel > 60f)
+        {
+            _allWaypoints = friendlyWaypoints;
+        }
+        else if (happyLevel < 40f)
+        {
+            _allWaypoints = angryWaypoints;
+        }
+        else
+        {
+            _allWaypoints = neutralWaypoints;
+        }
+
         if (_allWaypoints.Count == 0) return;
 
         //current pos
@@ -264,4 +301,21 @@ public class BirdFlying : MonoBehaviour
         float u = 1 - t;
         return 2 * u * (p1 - p0) + 2 * t * (p2 - p1);
     }
+
+    private void SetWaypointVisibility()
+    {
+        // Hide all waypoints 
+        foreach (var t in friendlyWaypoints)
+            if (t.TryGetComponent<Renderer>(out var r1)) r1.enabled = false;
+
+        foreach (var t in neutralWaypoints)
+            if (t.TryGetComponent<Renderer>(out var r2)) r2.enabled = false;
+
+        foreach (var t in angryWaypoints)
+            if (t.TryGetComponent<Renderer>(out var r3)) r3.enabled = false;
+
+        //foreach (var t in showList)
+        //    if (t.TryGetComponent<Renderer>(out var r4)) r4.enabled = true;
+    }
+
 }
