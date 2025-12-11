@@ -14,13 +14,15 @@ public class BirdFlying : MonoBehaviour
     [Tooltip("Transform on the Left Controller where the bird should land")]
     public Transform playerPerchTarget;
     [Tooltip("How far ahead to place the control point based on current direction")]
-    [SerializeField] private float _perchTransitionDistance = 3f;
+    [SerializeField] private float _perchTransitionDistance = 2f;
     [Tooltip("Duration of the landing animation in seconds")]
-    [SerializeField] private float _landingDuration = 1f;
+    [SerializeField] private float _landingDuration = 0.5f;
     [Tooltip("Distance at which the bird starts slowing down")]
-    [SerializeField] private float _slowdownDistance = 3f;
+    [SerializeField] private float _slowdownDistance = 2f;
     [Tooltip("Minimum speed multiplier when approaching (0.1 = 10% of normal speed)")]
-    [SerializeField] private float _minSpeedMultiplier = 0.2f;
+    [SerializeField] private float _minSpeedMultiplier = 0.3f;
+    [Tooltip("How quickly the bird adjusts to moving perch target")]
+    [SerializeField] private float _perchTrackingSpeed = 2f;
 
     private List<Transform> _allWaypoints;
     private Vector3 _p0, _p1, _p2;
@@ -84,7 +86,14 @@ public class BirdFlying : MonoBehaviour
 
         _t += (Time.deltaTime * _flightSpeed * speedMultiplier) / distance;
 
-        // 2. Check for arrival
+        // 2. Smoothly adjust target if perching (for moving hands)
+        if (_isPerching && playerPerchTarget != null)
+        {
+            // Smoothly update the target position instead of snapping
+            _p2 = Vector3.Lerp(_p2, playerPerchTarget.position, _perchTrackingSpeed * Time.deltaTime);
+        }
+
+        // 3. Check for arrival
         if (_t >= 1.0f)
         {
             _t = 1.0f;
@@ -101,20 +110,34 @@ public class BirdFlying : MonoBehaviour
             }
         }
 
-        // 3. Calculate Bezier Position
+        // 4. Calculate Bezier Position
         Vector3 newPos = CalculateQuadraticBezier(_p0, _p1, _p2, _t);
 
-        // 4. Calculate current tangent (for smooth transitions)
+        // 5. Calculate current tangent (for smooth transitions)
         _currentTangent = CalculateBezierTangent(_p0, _p1, _p2, _t);
 
-        // 5. Update Rotation to look forward along the curve
+        // 6. Update Rotation to look forward along the curve
         if (_currentTangent != Vector3.zero)
         {
             Quaternion targetRot = Quaternion.LookRotation(_currentTangent);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, _rotationSpeed * Time.deltaTime);
+
+            // If perching, rotate instantly toward perch target
+            if (_isPerching && playerPerchTarget != null)
+            {
+                Vector3 directionToPerch = (playerPerchTarget.position - transform.position).normalized;
+                if (directionToPerch != Vector3.zero)
+                {
+                    transform.rotation = Quaternion.LookRotation(directionToPerch);
+                }
+            }
+            else
+            {
+                // Normal smooth rotation for waypoint flying
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, _rotationSpeed * Time.deltaTime);
+            }
         }
 
-        // 6. Apply Position
+        // 7. Apply Position
         transform.position = newPos;
     }
 

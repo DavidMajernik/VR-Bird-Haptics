@@ -6,7 +6,7 @@ public class BirdHitDetector : MonoBehaviour
 
     [Header("Hit Settings")]
     [Tooltip("The minimum speed the hand must be moving to trigger the ragdoll (in meters/sec).")]
-    [SerializeField] private float _minHitSpeed = 3f;
+    [SerializeField] private float _minHitSpeed = 4f;
 
     [Tooltip("Multiplies the hand velocity to create the impact force. Higher = bird flies further.")]
     [SerializeField] private float _forceMultiplier = 1f;
