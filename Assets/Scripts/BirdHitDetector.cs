@@ -3,58 +3,63 @@ using UnityEngine;
 public class BirdHitDetector : MonoBehaviour
 {
     BirdController controller;
+    BirdAngerMeter angerMeter;
 
     [Header("Hit Settings")]
-    [Tooltip("The minimum speed the hand must be moving to trigger the ragdoll (in meters/sec).")]
-    [SerializeField] private float _minHitSpeed = 4f;
-
-    [Tooltip("Multiplies the hand velocity to create the impact force. Higher = bird flies further.")]
+    [SerializeField] private float _minHitSpeed = 5f;
     [SerializeField] private float _forceMultiplier = 1f;
+
+    private bool hasReacted = false;
 
     void Awake()
     {
         controller = GetComponentInParent<BirdController>();
+        angerMeter = GetComponent<BirdAngerMeter>();
+
+        if (angerMeter == null)
+        {
+            Debug.LogWarning("No BirdAngerMeter found.");
+        }
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (controller == null)
-        {
-            Debug.LogWarning("No BirdController found on BirdHitDetector!");
+        if (hasReacted) return;  
+
+        if (!other.CompareTag("PlayerHand"))
             return;
+
+        hasReacted = true;       
+
+        VelocityTracker tracker = other.GetComponent<VelocityTracker>();
+        if (tracker == null)
+            tracker = other.GetComponentInParent<VelocityTracker>();
+
+        float speed = (tracker != null) ? tracker.CurrentVelocity.magnitude : 0f;
+
+        // Punch
+        if (speed >= _minHitSpeed)
+        {
+            Vector3 impactForce = (tracker != null)
+                ? tracker.CurrentVelocity * _forceMultiplier
+                : (transform.position - other.transform.position).normalized * 10f;
+
+            angerMeter?.OnPunch();
+            controller?.SetState(BirdState.Ragdoll, impactForce);
         }
         else
         {
-            Debug.Log("BirdHitDetector detected a collision.");
+            // Pet
+            angerMeter?.OnPet();
         }
+    }
 
+    void OnTriggerExit(Collider other)
+    {
+        // Reset reaction so next hand entry can be detected
         if (other.CompareTag("PlayerHand"))
         {
-            VelocityTracker tracker = other.GetComponent<VelocityTracker>();
-
-            if (tracker == null) tracker = other.GetComponentInParent<VelocityTracker>();
-
-            if (tracker != null)
-            {
-                float speed = tracker.CurrentVelocity.magnitude;
-
-                if (speed < _minHitSpeed)
-                {
-                    Debug.Log($"Hit too weak: {speed} m/s (Needed: {_minHitSpeed})");
-                    return;
-                }
-
-                Vector3 impactForce = tracker.CurrentVelocity * _forceMultiplier;
-
-                Debug.Log($"Bird SMACKED! Speed: {speed}, Force: {impactForce}");
-                controller.SetState(BirdState.Ragdoll, impactForce);
-            }
-            else
-            {
-                Debug.LogWarning("No VelocityTracker found on PlayerHand! Using default force.");
-                Vector3 direction = (transform.position - other.transform.position).normalized;
-                controller.SetState(BirdState.Ragdoll, direction * 10f);
-            }
+            hasReacted = false;
         }
     }
 }
