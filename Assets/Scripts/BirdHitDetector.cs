@@ -4,6 +4,7 @@ public class BirdHitDetector : MonoBehaviour
 {
     BirdController controller;
     BirdAngerMeter angerMeter;
+    [SerializeField] private HitSounds hitSounds;
 
     [Header("Hit Settings")]
     [SerializeField] private float _minHitSpeed = 5f;
@@ -16,6 +17,7 @@ public class BirdHitDetector : MonoBehaviour
         controller = GetComponentInParent<BirdController>();
         angerMeter = GetComponent<BirdAngerMeter>();
 
+
         if (angerMeter == null)
         {
             Debug.LogWarning("No BirdAngerMeter found.");
@@ -24,12 +26,13 @@ public class BirdHitDetector : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (hasReacted) return;  
+        if (hasReacted) return;
+
 
         if (!other.CompareTag("PlayerHand"))
             return;
 
-        hasReacted = true;       
+        hasReacted = true;
 
         VelocityTracker tracker = other.GetComponent<VelocityTracker>();
         if (tracker == null)
@@ -52,6 +55,7 @@ public class BirdHitDetector : MonoBehaviour
             // Pet
             angerMeter?.OnPet();
         }
+        hitSounds.PlayHitAudio(angerMeter.HappyLevel);
     }
 
     void OnTriggerExit(Collider other)
