@@ -7,20 +7,47 @@ public class HitSounds : MonoBehaviour
 {
 
 
+    [Header("Bird & Player Audio")]
     [SerializeField] private AudioSource audioSourceBird;
     [SerializeField] private AudioSource audioSourcePlayer;
+
+    [Header("Hit Reaction Clips")]
     [SerializeField] private AudioClip clipHappy;
     [SerializeField] private AudioClip clipAngry;
     [SerializeField] private AudioClip clipAngrier;
     [SerializeField] private AudioClip clipAngriest;
     [SerializeField] private AudioClip clipPunch;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    [Header("Ambient Noise")]
+    [SerializeField] private AudioSource ambientSource;
+    [SerializeField] private AudioClip ambientClip;
+    [SerializeField] private bool loopAmbient = true;
 
     void Awake()
     {
         audioSourceBird = GetComponent<AudioSource>();
 
+    }
+
+    void Start()
+    {
+        PlayAmbient();
+    }
+
+    void Update()
+    {
+        if (audioSourceBird != null)
+            audioSourceBird.transform.position = transform.position;
+    }
+
+    public void PlayAmbient()
+    {
+        if (ambientSource == null || ambientClip == null)
+            return;
+
+        ambientSource.clip = ambientClip;
+        ambientSource.loop = loopAmbient;
+        ambientSource.Play();
     }
     public void PlayHitAudio(float happyLevel)
     {

@@ -4,17 +4,12 @@ public class BirdAngerMeter : MonoBehaviour
 {
     [Header("Mood Settings")]
     [SerializeField] private float currentHappyLevel = 100f;
-    [Tooltip("How much mood decreases per hit")]
     [SerializeField] private float moodDecrease = 20f;
-    [Tooltip("How much mood increases per pet")]
     [SerializeField] private float moodIncrease = 10f;
 
     [Header("Particle Effects")]
-    [Tooltip("Particle system for emotional display")]
     [SerializeField] private ParticleSystem emotionParticles;
-    [Tooltip("Color when bird is punched")]
     [SerializeField] private Color punchColor = Color.red;
-    [Tooltip("Color when bird is petted")]
     [SerializeField] private Color petColor = Color.green;
 
     private ParticleSystem.MainModule particleMain;
