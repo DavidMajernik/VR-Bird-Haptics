@@ -68,7 +68,7 @@ public class BirdController : MonoBehaviour
                 _wasLeftGripPressed = isPressed;
             }
 
-            // spin the motor backwards while left trigger pressed
+            // spin the motor forward while left trigger pressed
             float LtriggerValue = 0f;
             if (leftDevice.TryGetFeatureValue(CommonUsages.trigger, out LtriggerValue))
             {
@@ -85,7 +85,7 @@ public class BirdController : MonoBehaviour
 
                     if (motorControl != null)
                     {
-                        motorControl.SpinBackward();
+                        motorControl.SpinForward();
                     }
                 }
                 else
@@ -127,7 +127,7 @@ public class BirdController : MonoBehaviour
                 }
             }
 
-            // spin the motor forwards while right trigger pressed
+            // spin the motor backwards while right trigger pressed
             float RtriggerValue = 0f;
             if (rightDevice.TryGetFeatureValue(CommonUsages.trigger, out RtriggerValue))
             {
@@ -144,7 +144,7 @@ public class BirdController : MonoBehaviour
 
                     if (motorControl != null)
                     {
-                        motorControl.SpinForward();
+                        motorControl.SpinBackward();
                     }
                 }
                 else
