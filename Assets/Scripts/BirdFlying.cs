@@ -22,6 +22,7 @@ public class BirdFlying : MonoBehaviour
     public float perchTrackingSpeed = 3f;
 
     public System.Action OnArrivedAtPerch;
+    public System.Action OnStartLanding;
     private BirdAngerMeter angerMeter;
 
     private bool _isPerching = false;
@@ -124,6 +125,8 @@ public class BirdFlying : MonoBehaviour
         landingTimer = 0f;
         landingStartPos = transform.position;
         landingStartRot = transform.rotation;
+
+        OnStartLanding?.Invoke();
     }
 
     void UpdateLandingAnimation()

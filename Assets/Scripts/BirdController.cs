@@ -12,13 +12,13 @@ public class BirdController : MonoBehaviour
     public BirdFlying flyingScript;
     public BirdRagdoll ragdollScript;
     public MotorControl motorControl;
-
+    [SerializeField] private HitSounds hitSounds;
     public BirdState state;
     private float delayTime = 0.7f;
 
     private bool _wasLeftGripPressed = false;
-    private bool _wasLeftTriggerPressed = false;
-    private bool _wasRightTriggerPressed = false;
+    private bool _wasLeftButtonPressed = false;
+    private bool _wasRightButtonPressed = false;
 
     // Store the child transform so we can reset it
     private Transform _visualChild;
@@ -39,12 +39,17 @@ public class BirdController : MonoBehaviour
         _childLocalRotation = _visualChild.localRotation;
 
         flyingScript.OnArrivedAtPerch += HandlePerchArrival;
+        flyingScript.OnStartLanding += HandleStartLanding;
         SetState(BirdState.Flying);
     }
 
     void OnDestroy()
     {
-        if (flyingScript != null) flyingScript.OnArrivedAtPerch -= HandlePerchArrival;
+        if (flyingScript != null)
+        {
+            flyingScript.OnArrivedAtPerch -= HandlePerchArrival;
+            flyingScript.OnStartLanding -= HandleStartLanding;
+        }
     }
 
     void Update()
@@ -69,10 +74,10 @@ public class BirdController : MonoBehaviour
             }
 
             // spin the motor forward while left trigger pressed
-            float LtriggerValue = 0f;
-            if (leftDevice.TryGetFeatureValue(CommonUsages.trigger, out LtriggerValue))
+            bool bPressed = false;
+            if (leftDevice.TryGetFeatureValue(CommonUsages.primaryButton, out bPressed))
             {
-                bool triggerPressed = LtriggerValue > 0.1f;
+                bool triggerPressed = bPressed;
 
                 if (triggerPressed)
                 {
@@ -91,7 +96,7 @@ public class BirdController : MonoBehaviour
                 else
                 {
                     // Trigger released: if it was pressed previously, stop the motor immediately
-                    if (_wasLeftTriggerPressed)
+                    if (_wasLeftButtonPressed)
                     {
                         if (motorControl != null)
                         {
@@ -107,7 +112,7 @@ public class BirdController : MonoBehaviour
                     }
                 }
 
-                _wasLeftTriggerPressed = triggerPressed;
+                _wasLeftButtonPressed = triggerPressed;
             }
         }
 
@@ -127,11 +132,11 @@ public class BirdController : MonoBehaviour
                 }
             }
 
-            // spin the motor backwards while right trigger pressed
-            float RtriggerValue = 0f;
-            if (rightDevice.TryGetFeatureValue(CommonUsages.trigger, out RtriggerValue))
+            // spin the motor backwards while the a button pressed
+            bool aPressed = false;
+            if (rightDevice.TryGetFeatureValue(CommonUsages.primaryButton, out aPressed))
             {
-                bool triggerPressed = RtriggerValue > 0.1f;
+                bool triggerPressed = aPressed;
 
                 if (triggerPressed)
                 {
@@ -150,7 +155,7 @@ public class BirdController : MonoBehaviour
                 else
                 {
                     // Trigger released: if it was pressed previously, stop the motor immediately
-                    if (_wasRightTriggerPressed)
+                    if (_wasRightButtonPressed)
                     {
                         if (motorControl != null)
                         {
@@ -166,7 +171,7 @@ public class BirdController : MonoBehaviour
                     }
                 }
 
-                _wasRightTriggerPressed = triggerPressed;
+                _wasRightButtonPressed = triggerPressed;
             }
         }
 
@@ -175,7 +180,6 @@ public class BirdController : MonoBehaviour
     void TriggerPerch()
     {
         Debug.Log("Perching...");
-
         // If ragdolled, transition to flying first, then fly to perch
         if (state == BirdState.Ragdoll)
         {
@@ -183,6 +187,21 @@ public class BirdController : MonoBehaviour
         }
 
         flyingScript.FlyToPerch();
+    }
+
+    void HandleStartLanding()
+    {
+        // start motor to create tension only if motorControl exists
+        if (motorControl != null)
+        {
+            motorControl.SpinForward();
+            // stop motor 
+            if (_spinStopCoroutine != null)
+            {
+                StopCoroutine(_spinStopCoroutine);
+            }
+            _spinStopCoroutine = StartCoroutine(DelayedSpinStop(delayTime));
+        }
     }
 
     void HandlePerchArrival()
@@ -215,7 +234,7 @@ public class BirdController : MonoBehaviour
             if (motorControl != null)
             {
                 motorControl.SpinBackward(); // reset tension
-                // stop motor after some time (3 seconds)
+                // stop motor 
                 if (_spinStopCoroutine != null)
                 {
                     StopCoroutine(_spinStopCoroutine);
@@ -252,18 +271,6 @@ public class BirdController : MonoBehaviour
                 break;
 
             case BirdState.Perched:
-                // start motor to create tension only if motorControl exists
-                if (motorControl != null)
-                {
-                    motorControl.SpinForward();
-                    // stop motor after some time
-                    if (_spinStopCoroutine != null)
-                    {
-                        StopCoroutine(_spinStopCoroutine);
-                    }
-                    _spinStopCoroutine = StartCoroutine(DelayedSpinStop(delayTime));
-                }
-
                 ragdollScript._animator.SetBool("isFlying", false);
                 transform.position = flyingScript.playerPerchTarget.position;
                 transform.rotation = flyingScript.playerPerchTarget.rotation;

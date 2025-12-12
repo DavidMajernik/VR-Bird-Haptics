@@ -81,10 +81,9 @@ public class BirdHitDetector : MonoBehaviour
         }
         else
         {
-            // Pet
             angerMeter?.OnPet();
 
-            // Play gentle pet haptic on the hand that touched
+            //lol there is no pet haptic but if you wanted you could!
             PlayPetHaptic(handController);
         }
 

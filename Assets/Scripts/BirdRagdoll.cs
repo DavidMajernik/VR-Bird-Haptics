@@ -29,7 +29,6 @@ public class BirdRagdoll : MonoBehaviour
 
     public void EnableRagdoll(Vector3 impactForce = default(Vector3))
     {
-        // Disable animator FIRST so physics can take over cleanly
         if (_animator != null) _animator.enabled = false;
 
         _mainRigidBody.isKinematic = false;
@@ -46,7 +45,6 @@ public class BirdRagdoll : MonoBehaviour
             rb.detectCollisions = true;
             rb.useGravity = true;
 
-            // Reset velocities to prevent "explosions" when enabling
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
 
@@ -73,7 +71,6 @@ public class BirdRagdoll : MonoBehaviour
         _mainRigidBody.linearVelocity = Vector3.zero;
         _mainRigidBody.angularVelocity = Vector3.zero;
 
-        // Re-enable animator AFTER physics is disabled to snap bones back to animated pose
         if (_animator != null)
         {
             _animator.enabled = true;

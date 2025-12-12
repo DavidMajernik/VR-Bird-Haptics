@@ -16,6 +16,7 @@ public class HitSounds : MonoBehaviour
     [SerializeField] private AudioClip clipAngry;
     [SerializeField] private AudioClip clipAngrier;
     [SerializeField] private AudioClip clipPunch;
+    [SerializeField] private AudioClip clipWhistle;
 
     [Header("Ambient Noise")]
     [SerializeField] private AudioSource ambientSource;
@@ -55,6 +56,7 @@ public class HitSounds : MonoBehaviour
 
         switch (happyLevel)
         {
+            
             case float n when n < 40f:
                 audioSourceBird.clip = clipAngrier;
                 break;
@@ -71,7 +73,17 @@ public class HitSounds : MonoBehaviour
 
     public void PlayPunchAudio()
     {
+        if (audioSourcePlayer.isPlaying)
+            return;
         audioSourcePlayer.clip = clipPunch;
+        audioSourcePlayer.Play();
+    }
+
+    public void PlayWhistleAudio()
+    {
+        if(audioSourcePlayer.isPlaying)
+            return;
+        audioSourcePlayer.clip = clipWhistle;
         audioSourcePlayer.Play();
     }
 
