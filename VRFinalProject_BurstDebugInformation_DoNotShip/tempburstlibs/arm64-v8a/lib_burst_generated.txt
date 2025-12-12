@@ -11,7 +11,7 @@ Library: C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\BurstOutput\tempburstl
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\Burst
 --debug=LineOnly
---key-folder=C:/Program Files/Unity/Hub/Editor/6000.2.13f1/Editor/Data/PlaybackEngines/AndroidPlayer
+--key-folder=C:/Program Files/Unity/Hub/Editor/6000.2.15f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=C:\Users\dpmaj\UnityProjects\VRFinalProject\Library\Burst
 --output=C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
@@ -101,7 +101,7 @@ Library: C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\BurstOutput\tempburstl
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\Burst
 --debug=LineOnly
---key-folder=C:/Program Files/Unity/Hub/Editor/6000.2.13f1/Editor/Data/PlaybackEngines/AndroidPlayer
+--key-folder=C:/Program Files/Unity/Hub/Editor/6000.2.15f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=C:\Users\dpmaj\UnityProjects\VRFinalProject\Library\Burst
 --output=C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
@@ -120,7 +120,7 @@ Library: C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\BurstOutput\tempburstl
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\Burst
 --debug=LineOnly
---key-folder=C:/Program Files/Unity/Hub/Editor/6000.2.13f1/Editor/Data/PlaybackEngines/AndroidPlayer
+--key-folder=C:/Program Files/Unity/Hub/Editor/6000.2.15f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=C:\Users\dpmaj\UnityProjects\VRFinalProject\Library\Burst
 --output=C:\Users\dpmaj\UnityProjects\VRFinalProject\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
